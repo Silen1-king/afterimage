@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>残影 · Afterimage — Silen1</title>
+<meta name="description" content="Silen1 看过的电影、剧集、动画与纪录片。Films, series, animation and documentaries that left an afterimage.">
+<meta name="theme-color" content="#050507">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'">
+<meta property="og:type" content="website">
+<meta property="og:title" content="残影 · Afterimage">
+<meta property="og:description" content="Silen1 看过的电影、剧集、动画与纪录片。Films, series, animation and documentaries.">
+<meta property="og:image" content="https://silen1.com/afterimage/assets/og.jpg">
+<meta property="og:url" content="https://silen1.com/afterimage/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/noto-serif-sc-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="is-loading">
+<canvas id="stage" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- 开场 -->
+<section class="intro" id="intro" aria-labelledby="intro-title">
+  <p class="intro__kicker mono"><span>REEL 00</span><span class="intro__line"></span><span>Silen1 · 放映中</span></p>
+  <h1 class="intro__title" id="intro-title">
+    <span class="intro__zh" aria-label="残影"><span>残</span><span>影</span></span>
+    <span class="intro__en">AFTERIMAGE</span>
+  </h1>
+  <p class="intro__sub">看过的故事，在视网膜上留下的光。<br><span class="mono">Films, series, animation &amp; documentaries that stayed after the lights came on.</span></p>
+  <button class="intro__enter" id="enter" type="button">
+    <span class="intro__enter-ring" aria-hidden="true"></span>
+    <span class="intro__enter-label">进入放映<span class="mono">ENTER</span></span>
+  </button>
+  <p class="intro__count mono" id="intro-count"></p>
+</section>
+
+<!-- 顶栏 -->
+<header class="bar" id="bar">
+  <a class="bar__mark" href="./" aria-label="残影 Afterimage 首页"><span class="bar__zh">残影</span><span class="mono">AFTERIMAGE</span></a>
+  <nav class="bar__filters" aria-label="分类">
+    <button type="button" class="chip is-on" data-filter="all"><span>全部</span><i class="mono">ALL</i></button>
+    <button type="button" class="chip" data-filter="film"><b class="fmt" data-k="film"></b><span>电影</span><i class="mono">FILM</i></button>
+    <button type="button" class="chip" data-filter="series"><b class="fmt" data-k="series"></b><span>剧集</span><i class="mono">SERIES</i></button>
+    <button type="button" class="chip" data-filter="animation"><b class="fmt" data-k="animation"></b><span>动画</span><i class="mono">ANIMATION</i></button>
+    <button type="button" class="chip" data-filter="documentary"><b class="fmt" data-k="documentary"></b><span>纪录</span><i class="mono">DOCUMENTARY</i></button>
+  </nav>
+  <button type="button" class="bar__index mono" id="open-index" aria-haspopup="dialog">INDEX<span class="bar__index-n" id="index-n"></span></button>
+</header>
+
+<!-- 当前焦点作品的信息（左下） -->
+<aside class="now" id="now" aria-live="polite">
+  <p class="now__no mono"><span id="now-no">01</span><span class="now__of">/ <span id="now-total">09</span></span></p>
+  <p class="now__type mono" id="now-type">FILM · 2017</p>
+  <p class="now__title" id="now-title"></p>
+  <p class="now__en mono" id="now-en"></p>
+  <p class="now__hint mono"><span class="now__wheel" aria-hidden="true"></span>滚动穿行 · 点击进入</p>
+</aside>
+
+<!-- 右侧进度轨 -->
+<nav class="rail" id="rail" aria-label="作品进度"></nav>
+
+<!-- 作品详情 -->
+<article class="detail" id="detail" aria-hidden="true" tabindex="-1">
+  <div class="detail__inner">
+    <p class="detail__kicker mono" data-stagger><span id="d-no"></span><span class="detail__dash"></span><span id="d-type"></span><span class="detail__dash"></span><span id="d-year"></span></p>
+    <h2 class="detail__title" id="d-title" data-stagger></h2>
+    <p class="detail__en" id="d-en" data-stagger></p>
+    <p class="detail__meta mono" id="d-meta" data-stagger></p>
+    <blockquote class="detail__line" id="d-line" data-stagger></blockquote>
+    <div class="detail__note" id="d-note" data-stagger></div>
+    <div class="detail__palette" data-stagger>
+      <p class="mono">残影色谱 · AFTERIMAGE PALETTE</p>
+      <ul id="d-palette"></ul>
+    </div>
+    <p class="detail__links mono" data-stagger><a id="d-link" href="#" target="_blank" rel="noopener">IMDb ↗</a></p>
+  </div>
+  <div class="detail__nav">
+    <button type="button" class="detail__btn mono" id="d-back"><span aria-hidden="true">←</span> 返回 <kbd>ESC</kbd></button>
+    <button type="button" class="detail__btn mono" id="d-next">下一部 <span aria-hidden="true">→</span></button>
+  </div>
+  <p class="detail__sample mono" id="d-sample">示例条目 · SAMPLE — 等你换成自己看过的</p>
+</article>
+
+<!-- 目录（同时也是无 WebGL / 读屏用户的完整入口） -->
+<div class="index" id="index" role="dialog" aria-modal="true" aria-labelledby="index-title" hidden>
+  <div class="index__head">
+    <h2 id="index-title">片单 <span class="mono">INDEX</span></h2>
+    <button type="button" class="index__close mono" id="close-index">CLOSE ✕</button>
+  </div>
+  <ol class="index__list" id="index-list"></ol>
+</div>
+
+<div class="cursor" id="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"><span class="cursor__label mono">ENTER</span></span></div>
+
+<noscript><style>.intro__enter,.bar,.now,.rail{display:none}</style></noscript>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

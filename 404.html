@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'">
+<title>这一帧丢了 · 残影 Afterimage</title>
+<link rel="icon" href="/afterimage/assets/favicon.svg" type="image/svg+xml">
+<style>
+@font-face { font-family: "Afterimage Serif"; src: url(/afterimage/assets/fonts/noto-serif-sc-600.woff2) format("woff2"); font-weight: 600; }
+@font-face { font-family: "JetBrains Mono"; src: url(/afterimage/assets/fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2"); }
+:root { color-scheme: dark; --bg: #050507; --ink: #ece8e1; --dim: rgba(236,232,225,.52); --accent: #ff7a1a; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); }
+body { display: grid; place-content: center; justify-items: center; gap: 18px; text-align: center; padding: 0 16px; font-family: "JetBrains Mono", monospace; }
+.no { font-size: 11px; letter-spacing: .3em; color: var(--accent); }
+h1 { margin: 0; font-family: "Afterimage Serif", serif; font-weight: 600; font-size: clamp(40px, 8vw, 72px); letter-spacing: .08em; text-shadow: -3px 0 rgba(255,122,26,.5), 3px 0 rgba(28,159,174,.5); }
+p { margin: 0; font-size: 11px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
+a { margin-top: 18px; color: var(--ink); font-size: 12px; letter-spacing: .2em; text-decoration: none; border: 1px solid rgba(236,232,225,.3); border-radius: 999px; padding: 12px 22px; }
+a:hover, a:focus-visible { background: var(--ink); color: var(--bg); }
+</style>
+</head>
+<body>
+<p class="no">FRAME 404</p>
+<h1>这一帧丢了</h1>
+<p>This frame never made it to the reel.</p>
+<a href="/afterimage/">回到放映 · BACK TO THE REEL</a>
+</body>
+</html>
