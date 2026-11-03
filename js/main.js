@@ -3,6 +3,8 @@
 // 滚动 = 摄影机沿光带推进；点击 = 镜头穿进胶片，粒子化作这部作品的颜色把你包住。
 import * as THREE from '../vendor/three.module.min.js';
 import { WORKS, TYPES } from '../data/works.js';
+import { t, pick, isEn, applyStatic, setLang } from './i18n.js';
+import { sound } from './sound.js';
 
 const $ = (s) => document.querySelector(s);
 const body = document.body;
@@ -18,20 +20,40 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const CAPTURE = new URLSearchParams(location.search).has('capture');
 let vtime = 0;
 const now = () => CAPTURE ? vtime * 1000 : performance.now();
+// 地址：正式网站每部作品是 /afterimage/w/<id>/（每个地址有自己的分享卡片，由 tools/build-pages.mjs 生成）；
+// 其它环境（本地预览等，没有 afterimage-routes 标记）用 #/<id>。旧的 #/<id> 链接一直有效。
+// 换地址以后相对路径会跟着变，所以图片等资源一律按启动时的根目录 BASE 解析。
+const ROUTES = document.querySelector('meta[name="afterimage-routes"]')?.content === 'path';
+const BASE = new URL('./', document.baseURI);
+const asset = (p) => new URL(p, BASE).href;
+if (ROUTES) document.querySelector('.bar__mark').href = BASE.pathname;
 
-/* ------------------------------------------------------------------ DOM: 目录 / 进度轨 */
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// 当前语言下的主标题 / 副标题：中文界面中文在上，英文界面英文在上
+const mainTitle = (w) => isEn() ? w.title_en : w.title;
+const subTitle = (w) => isEn() ? w.title : w.title_en;
+const typeLabel = (w) => isEn() ? TYPES[w.type].en : `${TYPES[w.type].zh} ${TYPES[w.type].en}`;
+const zhAttr = () => isEn() ? ' lang="zh-CN" class="is-zh"' : '';
+
+/* ------------------------------------------------------------------ DOM: 目录 / 分类 / 开场计数 */
 const indexList = $('#index-list');
-WORKS.forEach((w, i) => {
-  const li = document.createElement('li');
-  li.innerHTML = `<button type="button" data-id="${w.id}" style="--c:${w.palette[0]}">
+function buildIndex() {
+  indexList.innerHTML = WORKS.map((w, i) => {
+    const tag = w.still ? `<em class="tag mono">${t(w.still.kind === 'ticket' ? 'tagTicket' : 'tagFrame')}</em>` : '';
+    return `<li><button type="button" data-id="${esc(w.id)}" style="--c:${esc(w.palette[0])}">
     <span class="n mono">${pad2(i + 1)}</span>
-    <span class="t">${w.title}<small>${w.title_en} · ${w.year}</small></span>
-    <span class="k mono"><b class="fmt" data-k="${w.type}"></b>${TYPES[w.type].zh} · ${TYPES[w.type].en}</span>
-    <span class="sw">${w.palette.map((c) => `<i style="background:${c}"></i>`).join('')}</span></button>`;
-  indexList.appendChild(li);
-});
+    <span class="t"${isEn() ? ' lang="en"' : ''}>${esc(mainTitle(w))}<small${zhAttr()}>${esc(subTitle(w))} · ${w.year}${tag}</small></span>
+    <span class="k mono"><b class="fmt" data-k="${w.type}"></b>${isEn() ? TYPES[w.type].en : `${TYPES[w.type].zh} · ${TYPES[w.type].en}`}</span>
+    <span class="sw">${w.palette.map((c) => `<i style="background:${esc(c)}"></i>`).join('')}</span></button></li>`;
+  }).join('');
+}
+buildIndex();
 $('#index-n').textContent = WORKS.length;
-$('#intro-count').textContent = Object.keys(TYPES).map((k) => `${pad2(WORKS.filter((w) => w.type === k).length)} ${TYPES[k].en}`).join(' · ');
+// 还没有作品的分类不显示（筛出来是空的会很奇怪）
+const typeCount = (k) => WORKS.filter((w) => w.type === k).length;
+document.querySelectorAll('.chip[data-filter]').forEach((c) => { if (c.dataset.filter !== 'all') c.hidden = typeCount(c.dataset.filter) === 0; });
+$('#intro-count').textContent = Object.keys(TYPES).filter(typeCount).map((k) => `${pad2(typeCount(k))} ${TYPES[k].en}`).join(' · ');
+applyStatic();
 
 /* ------------------------------------------------------------------ WebGL 检测 */
 const canvas = $('#stage');
@@ -47,6 +69,7 @@ if (!renderer) {
   indexList.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-id]'); if (b) { const w = WORKS.find((x) => x.id === b.dataset.id); if (w) window.open(w.link, '_blank', 'noopener'); }
   });
+  document.dispatchEvent(new Event('afterimage:ready'));
   throw new Error('WebGL unavailable — showing index fallback');
 }
 
@@ -309,17 +332,21 @@ function cardTexture(w, i) {
   if (f.k === 3) g.fillText(ty, W - X - g.measureText(ty).width, top + 44);
   else g.fillText(ty, W - X - g.measureText(ty).width, top);
   if (f.k !== 3) g.fillRect(X, top + 22, 60, 2);
-  // 中文标题：按宽度和高度自适应字号
-  let fs = Math.min(150, H * .19);
-  g.letterSpacing = '10px';
-  do { g.font = `600 ${fs}px "Afterimage Serif"`; fs -= 6; } while (g.measureText(w.title).width > W - X * 2 - 40 && fs > 50);
+  // 有票根 / 剧照的作品：右上角一个小记号，点进去能看到
+  if (w.still) drawBadge(g, w.still.kind, W - X, f.k === 3 ? top + 88 : top + 46);
+  // 主标题：按宽度和高度自适应字号（英文界面英文在上，中文变小字）
+  const en = isEn();
+  const big = mainTitle(w);
+  let fs = Math.min(en ? 132 : 150, H * .19);
+  g.letterSpacing = en ? '2px' : '10px';
+  do { g.font = `600 ${fs}px "Afterimage Serif"`; fs -= 6; } while (g.measureText(big).width > W - X * 2 - 40 && fs > 44);
+  fs += 6;
   const base = H * (f.k === 0 ? .555 : .63);
   g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 30;
-  g.fillText(w.title, X, base);
+  g.fillText(big, X, base);
   g.shadowBlur = 0;
-  g.font = `300 ${Math.round(fs * .3 + 10)}px "Space Grotesk"`;
-  g.letterSpacing = '4px';
-  g.fillText(w.title_en.toUpperCase(), X + 4, base + fs * .3 + 40);
+  if (en) { g.font = `400 ${Math.round(fs * .3 + 12)}px "Afterimage Serif"`; g.letterSpacing = '6px'; g.fillText(w.title, X + 4, base + fs * .3 + 40); }
+  else { g.font = `300 ${Math.round(fs * .3 + 10)}px "Space Grotesk"`; g.letterSpacing = '4px'; g.fillText(w.title_en.toUpperCase(), X + 4, base + fs * .3 + 40); }
   g.font = '400 24px "JetBrains Mono"';
   g.globalAlpha = .7;
   g.letterSpacing = '5px';
@@ -330,10 +357,42 @@ function cardTexture(w, i) {
     g.globalAlpha = .9;
     for (let s = 0; s < seasons; s++) g.fillRect(W - X - (seasons - s) * 34 + 8, bot - 46, 26, 22);
   }
-  const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 4;
-  t.colorSpace = THREE.NoColorSpace;
-  return t;
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  tex.colorSpace = THREE.NoColorSpace;
+  return tex;
+}
+// 小记号：一张票（两侧有缺口）或一格画面（四角框），后面跟一行字；右对齐到 right
+function drawBadge(g, kind, right, y) {
+  const label = t(kind === 'ticket' ? 'badgeTicket' : 'badgeFrame');
+  g.save();
+  g.globalAlpha = .92;
+  g.letterSpacing = isEn() ? '4px' : '6px';
+  g.font = isEn() ? '500 21px "JetBrains Mono"' : '400 23px "Afterimage Serif"';
+  const tw = g.measureText(label).width;
+  const h = 42, iw = 30, padX = 16, gap = 12;
+  const w = padX * 2 + iw + gap + tw;
+  const x = right - w, top = y - h / 2 - 7;
+  g.lineWidth = 1.6; g.strokeStyle = '#fff'; g.fillStyle = '#fff';
+  g.beginPath(); if (g.roundRect) g.roundRect(x, top, w, h, h / 2); else g.rect(x, top, w, h); g.stroke();
+  const ix = x + padX, iy = top + h / 2 - 9, ih = 18;
+  if (kind === 'ticket') {
+    g.beginPath();
+    g.moveTo(ix, iy); g.lineTo(ix + iw, iy); g.lineTo(ix + iw, iy + 6); g.arc(ix + iw, iy + ih / 2, 3, -Math.PI / 2, Math.PI / 2, true);
+    g.lineTo(ix + iw, iy + ih); g.lineTo(ix, iy + ih); g.lineTo(ix, iy + 12); g.arc(ix, iy + ih / 2, 3, Math.PI / 2, -Math.PI / 2, true);
+    g.closePath(); g.fill();
+    g.globalCompositeOperation = 'destination-out';
+    for (let k = 0; k < 4; k++) g.fillRect(ix + iw * .68, iy + 2.5 + k * 3.6, 1.6, 2);   // 撕线
+    g.globalCompositeOperation = 'source-over';
+  } else {
+    const c = 6;
+    g.beginPath();
+    [[ix, iy, 1, 1], [ix + iw, iy, -1, 1], [ix, iy + ih, 1, -1], [ix + iw, iy + ih, -1, -1]].forEach(([px, py, dx, dy]) => { g.moveTo(px + dx * c, py); g.lineTo(px, py); g.lineTo(px, py + dy * c); });
+    g.lineWidth = 2.2; g.stroke();
+    g.fillRect(ix + iw / 2 - 3, iy + ih / 2 - 3, 6, 6);
+  }
+  g.fillText(label, ix + iw + gap, top + h / 2 + 8);
+  g.restore();
 }
 
 const cards = WORKS.map((w, i) => {
@@ -436,6 +495,8 @@ addEventListener('touchmove', (e) => {
 addEventListener('touchend', () => { touchY = null; });
 addEventListener('keydown', (e) => {
   if (!$('#index').hidden) { if (e.key === 'Escape') closeIndex(); return; }
+  // 焦点在按钮或链接上时，回车 / 空格是按那个按钮，不是进入作品
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('button, a')) return;
   if (!entered) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enter(); } return; }
   if (mode === 'detail') { if (e.key === 'Escape') exitDetail(); if (e.key === 'ArrowRight') nextDetail(1); if (e.key === 'ArrowLeft') nextDetail(-1); return; }
   if (['ArrowDown', 'ArrowRight', 'PageDown', 'j'].includes(e.key)) { e.preventDefault(); sT = clamp(Math.round(sT) + 1, 0, maxS()); lastInput = now(); }
@@ -486,10 +547,12 @@ function setNow(ci) {
   const swap = (el, txt) => { el.innerHTML = `<span class="swap">${txt}</span>`; };
   swap($('#now-no'), pad2(j + 1));
   $('#now-total').textContent = pad2(visible.length);
-  swap($('#now-type'), `<b class="fmt" data-k="${w.type}"></b>${TYPES[w.type].zh} ${TYPES[w.type].en} · ${w.year}`);
+  swap($('#now-type'), `<b class="fmt" data-k="${w.type}"></b>${typeLabel(w)} · ${w.year}`);
   $('#now-type').style.color = w.palette[0];
-  swap($('#now-title'), w.title);
-  swap($('#now-en'), w.title_en);
+  swap($('#now-title'), esc(mainTitle(w)));
+  swap($('#now-en'), esc(subTitle(w)));
+  $('#now-en').classList.toggle('is-zh', isEn());
+  if (isEn()) $('#now-en').lang = 'zh-CN'; else $('#now-en').removeAttribute('lang');
   document.documentElement.style.setProperty('--accent', w.palette[0]);
   [...$('#rail').children].forEach((b, k) => b.classList.toggle('is-on', k === j));
 }
@@ -497,8 +560,8 @@ function buildRail() {
   const rail = $('#rail'); rail.innerHTML = '';
   visible.forEach((ci, j) => {
     const b = document.createElement('button'); b.type = 'button';
-    b.setAttribute('aria-label', `${pad2(j + 1)} ${WORKS[ci].title}`);
-    b.innerHTML = `<span>${WORKS[ci].title}</span>`;
+    b.setAttribute('aria-label', `${pad2(j + 1)} ${mainTitle(WORKS[ci])}`);
+    b.innerHTML = `<span>${esc(mainTitle(WORKS[ci]))}</span>`;
     b.onclick = () => { if (mode === 'browse') { sT = j; lastInput = now(); } };
     rail.appendChild(b);
   });
@@ -512,6 +575,7 @@ document.querySelectorAll('.chip').forEach((chip) => chip.addEventListener('clic
   filter = chip.dataset.filter;
   const cur = visible[Math.round(clamp(s, 0, maxS()))];
   visible = WORKS.map((_, i) => i).filter((i) => filter === 'all' || WORKS[i].type === filter);
+  if (!visible.length) visible = WORKS.map((_, i) => i);
   layout();
   const keep = visible.indexOf(cur);
   sT = keep >= 0 ? keep : 0;
@@ -525,6 +589,7 @@ function enter() {
   if (entered) return;
   entered = true;
   body.classList.add('is-in');
+  try { sessionStorage.setItem('afterimage:intro', '1'); } catch (e) { /* 存不了就下次再播 */ }
   sT = 0; lastInput = now();
   if (reduceMotion) s = 0;
 }
@@ -536,34 +601,55 @@ let diveT = 0, diveIdx = -1;
 const diveFrom = new THREE.Vector3(), diveLookFrom = new THREE.Vector3();
 const detail = $('#detail');
 
-function fillDetail(ci) {
+// 你写的话：英文界面有英文版就用英文版，没有就显示中文原文（并标上 lang，读屏和字体都对）
+function setWords(el, w, field, html) {
+  const v = pick(w, field);
+  const zh = isEn() && !w[`${field}_en`] && !!w[field];
+  if (html) el.innerHTML = v.split(/\n+/).filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join('');
+  else el.textContent = v;
+  el.hidden = !v;
+  el.classList.toggle('is-zh', zh);
+  if (zh) el.lang = 'zh-CN'; else el.removeAttribute('lang');
+}
+function fillDetailText(ci) {
   const w = WORKS[ci];
   const j = visible.indexOf(ci);
   $('#d-no').textContent = `NO.${pad2(j + 1)}`;
-  $('#d-type').innerHTML = `<b class="fmt" data-k="${w.type}"></b>${TYPES[w.type].zh} ${TYPES[w.type].en}`;
+  $('#d-type').innerHTML = `<b class="fmt" data-k="${w.type}"></b>${typeLabel(w)}`;
   $('#d-year').textContent = w.year;
-  $('#d-title').textContent = w.title;
-  $('#d-en').textContent = w.title_en;
-  $('#d-meta').textContent = w.seen ? `${w.meta} · SEEN ${w.seen.replace(/-/g, '.')}` : w.meta;
-  $('#d-line').textContent = w.line || '';
-  $('#d-line').hidden = !w.line;
-  $('#d-note').innerHTML = (w.note || '').split(/\n+/).filter(Boolean).map((p) => `<p>${p}</p>`).join('');
-  $('#d-note').hidden = !w.note;
+  $('#d-title').textContent = mainTitle(w);
+  $('#d-en').textContent = subTitle(w);
+  $('#d-en').classList.toggle('is-zh', isEn());
+  if (isEn()) $('#d-en').lang = 'zh-CN'; else $('#d-en').removeAttribute('lang');
+  $('#d-meta').textContent = w.seen ? `${w.meta} · ${t('seen')} ${w.seen.replace(/-/g, '.')}` : w.meta;
+  setWords($('#d-line'), w, 'line');
+  setWords($('#d-note'), w, 'note', true);
+  setKeepText(w);
+  document.title = isEn() ? `${w.title_en} · Afterimage 残影` : `${w.title} · 残影 Afterimage`;
+}
+function fillDetail(ci) {
+  const w = WORKS[ci];
   setKeep(w);
-  $('#d-palette').innerHTML = w.palette.map((c) => `<li><i style="background:${c}"></i><span>${c.toUpperCase()}</span></li>`).join('');
-  const link = $('#d-link'); link.href = w.link; link.hidden = !w.link;
-  $('#d-sample').classList.toggle('is-shown', !!w.sample);
+  fillDetailText(ci);
+  $('#d-palette').innerHTML = w.palette.map((c) => `<li><i style="background:${esc(c)}"></i><span>${esc(c.toUpperCase())}</span></li>`).join('');
+  const link = $('#d-link'); link.href = w.link || '#'; link.hidden = !w.link;
   veilMat.uniforms.uC1.value.set(w.palette[0]);
   veilMat.uniforms.uC2.value.set(w.palette[1]);
   veilMat.uniforms.uC3.value.set(w.palette[2]);
   shared.uTint.value.set(w.palette[0]);
-  document.title = `${w.title} · 残影 Afterimage`;
 }
 
 /* ------------------------------------------------------------------ 票根 / 定格：点进作品后，由粒子拼出来 */
 const keep = $('#d-keep'), keepImg = $('#d-keep-img'), keepFrame = $('#d-keep-frame'), dust = $('#d-keep-dust');
-const KEEP_LABEL = { ticket: '票根 · TICKET STUB', frame: '定格 · FREEZE FRAME' };
 let keepRun = 0;
+function setKeepText(w) {
+  const st = w.still;
+  if (!st) return;
+  keepImg.alt = pick(st, 'alt');
+  $('#d-keep-kind').textContent = t(st.kind === 'ticket' ? 'ticket' : 'frame');
+  $('#d-keep-cap').textContent = pick(st, 'caption');
+  $('#d-keep-credit').textContent = st.credit || '';
+}
 function setKeep(w) {
   keepRun++;
   const st = w.still;
@@ -577,11 +663,7 @@ function setKeep(w) {
   keep.dataset.kind = st.kind;
   keep.dataset.type = w.type;
   keep.style.setProperty('--ar', `${st.w} / ${st.h}`);
-  keepImg.src = st.src;
-  keepImg.alt = st.alt || '';
-  $('#d-keep-kind').textContent = KEEP_LABEL[st.kind] || KEEP_LABEL.frame;
-  $('#d-keep-cap').textContent = st.caption || '';
-  $('#d-keep-credit').textContent = st.credit || '';
+  keepImg.src = asset(st.src);
 }
 async function playKeep() {
   if (keep.hidden) return;
@@ -647,6 +729,16 @@ keepFrame.addEventListener('pointermove', (e) => {
 });
 keepFrame.addEventListener('pointerleave', () => { ['--rx', '--ry'].forEach((v) => keep.style.setProperty(v, '0deg')); });
 
+/* ------------------------------------------------------------------ 链接：每部作品有自己的地址 */
+const workURL = (id) => ROUTES ? new URL(`w/${encodeURIComponent(id)}/`, BASE).pathname : `#/${encodeURIComponent(id)}`;
+const homeURL = () => ROUTES ? BASE.pathname : location.pathname + location.search;
+function idFromURL() {
+  const h = location.hash.match(/^#\/(.+)$/);
+  if (h) return decodeURIComponent(h[1]);
+  const m = ROUTES && location.pathname.match(/\/w\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
 function dive(ci) {
   if (mode !== 'browse' || ci == null || ci < 0) return;
   diveIdx = ci;
@@ -657,15 +749,16 @@ function dive(ci) {
   mode = 'diving'; diveT = 0;
   body.classList.add('is-detail');
   cursor.classList.remove('is-card');
-  if (location.hash !== `#/${WORKS[ci].id}`) history.pushState(null, '', `#/${WORKS[ci].id}`);
+  if (ROUTES && location.hash) history.replaceState(null, '', workURL(WORKS[ci].id));
+  else if (idFromURL() !== WORKS[ci].id) history.pushState(null, '', workURL(WORKS[ci].id));
 }
 function exitDetail() {
   if (mode !== 'detail') return;
   mode = 'leaving';
   body.classList.remove('is-detail-in');
   setTimeout(() => body.classList.remove('is-detail'), 500);
-  document.title = '残影 · Afterimage — Silen1';
-  if (location.hash) history.pushState(null, '', location.pathname + location.search);
+  document.title = t('title');
+  if (idFromURL()) history.pushState(null, '', homeURL());
 }
 function nextDetail(dir) {
   if (mode !== 'detail') return;
@@ -678,7 +771,7 @@ function nextDetail(dir) {
     setNow(diveIdx);
     fillDetail(diveIdx);
     detail.scrollTop = 0;
-    history.replaceState(null, '', `#/${WORKS[diveIdx].id}`);
+    history.replaceState(null, '', workURL(WORKS[diveIdx].id));
     body.classList.add('is-detail-in');
     playKeep();
   }, 520);
@@ -686,7 +779,7 @@ function nextDetail(dir) {
 $('#d-back').addEventListener('click', exitDetail);
 $('#d-next').addEventListener('click', () => nextDetail(1));
 addEventListener('popstate', () => {
-  const id = location.hash.replace('#/', '');
+  const id = idFromURL();
   const ci = WORKS.findIndex((w) => w.id === id);
   if (ci >= 0 && mode === 'browse') { if (!entered) enter(); dive(ci); }
   else if (!id && mode === 'detail') exitDetail();
@@ -707,6 +800,42 @@ indexList.addEventListener('click', (e) => {
   sT = s = cards[ci].userData.slot;
   setTimeout(() => dive(ci), 60);
 });
+
+/* ------------------------------------------------------------------ 中 / EN */
+function refreshLang() {
+  buildIndex();
+  cards.forEach((m, i) => { const old = m.material.uniforms.uTex.value; m.material.uniforms.uTex.value = cardTexture(WORKS[i], i); if (old) old.dispose(); });
+  buildRail();
+  if (entered && mode === 'browse') setNow(visible[Math.round(clamp(s, 0, maxS()))]);
+  if (diveIdx >= 0 && mode !== 'browse') fillDetailText(diveIdx);
+  else document.title = t('title');
+  updateSoundLabel();
+}
+$('#lang').addEventListener('click', () => { setLang(isEn() ? 'zh' : 'en'); refreshLang(); });
+
+/* ------------------------------------------------------------------ 放映机声音 */
+const soundBtn = $('#sound');
+let soundPending = sound.remembered();   // 上次开着：等第一次点击再接上
+function updateSoundLabel() {
+  const lit = sound.on || soundPending;
+  soundBtn.setAttribute('aria-pressed', String(lit));
+  soundBtn.classList.toggle('is-on', lit);
+  soundBtn.setAttribute('aria-label', t(lit ? 'soundOn' : 'soundOff'));
+}
+sound.onChange(updateSoundLabel);
+soundBtn.addEventListener('click', () => {
+  if (soundPending) { soundPending = false; sound.set(false); return; }   // 看到的是「开」，点一下就是关
+  sound.toggle();
+});
+function armSound(e) {
+  if (!soundPending) return;
+  if (e.target && e.target.closest && e.target.closest('#sound')) return;
+  soundPending = false;
+  ['click', 'touchend', 'keydown'].forEach((ev) => removeEventListener(ev, armSound, true));
+  sound.set(true);
+}
+if (soundPending) ['click', 'touchend', 'keydown'].forEach((ev) => addEventListener(ev, armSound, true));
+updateSoundLabel();
 
 /* ------------------------------------------------------------------ 主循环 */
 const curLook = new THREE.Vector3();
@@ -789,6 +918,7 @@ function tick() {
     shared.uWarp.value = Math.min(.5, Math.abs(vel) * .08) * (reduceMotion ? 0 : 1);
   }
   if (warpKick > 0) { shared.uWarp.value = Math.max(shared.uWarp.value, Math.sin(warpKick / .6 * Math.PI) * .4); warpKick = Math.max(0, warpKick - dt * .8); }
+  if (sound.on) sound.warp(shared.uWarp.value);
   camera.lookAt(curLook);
   if (!reduceMotion) camera.rotateZ(clamp(-vel * .02, -.06, .06) + Math.sin(t * .2) * .006);
 
@@ -856,12 +986,15 @@ async function boot() {
   cards.forEach((m) => { m.userData.cur.copy(m.userData.pos); m.position.copy(m.userData.pos); m.quaternion.copy(m.userData.quat); });
   body.classList.remove('is-loading');
   requestAnimationFrame(() => body.classList.add('is-ready'));
+  document.dispatchEvent(new Event('afterimage:ready'));
   if (CAPTURE) window.__frame = (n = 1) => { for (let i = 0; i < n; i++) tick(); };
   else renderer.setAnimationLoop(tick);
-  // 直接打开某部作品的链接：#/blade-runner-2049
-  const id = location.hash.replace('#/', '');
+  // 直接打开某部作品的链接：/afterimage/w/edgerunners/ 或 #/edgerunners
+  const id = idFromURL();
   const ci = WORKS.findIndex((w) => w.id === id);
   if (ci >= 0) { enter(); s = sT = cards[ci].userData.slot; shared.uBirth.value = 1; setTimeout(() => dive(ci), 300); }
+  // 这个标签页已经看过开场：直接进放映（粒子照样炸开，摄影机滑进来）
+  else if (document.documentElement.classList.contains('skip-intro')) enter();
   // 测试/截图用：?at=3 直接停在第 4 部
   const at = new URLSearchParams(location.search).get('at');
   if (at != null) { enter(); shared.uBirth.value = 1; s = sT = clamp(+at, 0, maxS()); }

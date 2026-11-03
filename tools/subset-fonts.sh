@@ -6,10 +6,18 @@ set -e
 SRC="$1"
 cd "$(dirname "$0")/.."
 python3 - <<'PY' > /tmp/afterimage-chars.txt
-import glob
+import glob, re
 t = ''
+# 注释里的字不会显示出来，先去掉，字体能小一圈
 for f in glob.glob('**/*.html', recursive=True) + glob.glob('js/*.js') + glob.glob('data/*.js'):
-    t += open(f, encoding='utf8').read()
+    s = open(f, encoding='utf8').read()
+    s = re.sub(r'<!--.*?-->', '', s, flags=re.S)
+    if f.endswith('.js'):
+        s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)
+        s = re.sub(r'(^|\s)//[^\n]*', r'\1', s)
+    else:
+        s = re.sub(r'(^|\s)//[^\n]*', r'\1', s)   # 页面里 <script> 的注释
+    t += s
 print(''.join(sorted(set(c for c in t if ord(c) > 0x2000))) + ''.join(chr(i) for i in range(0x20, 0x7f)))
 PY
 for w in 400 600; do

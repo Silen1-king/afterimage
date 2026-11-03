@@ -1,5 +1,5 @@
 // 残影 · AFTERIMAGE — 看过的作品
-// 没有 sample: true 的是 Silen1 真正看过的；标了 sample 的是示例，等换成自己看过的。
+// 这里只放 Silen1 真正看过的。改完运行 node tools/build-pages.mjs，生成每部作品的分享页和分享图。
 // type（按作品形式分，一部作品只属于一类）：
 //   film 电影 —— 真人电影
 //   series 剧集 —— 真人剧集，美剧/英剧/韩剧/国产剧都算
@@ -10,7 +10,9 @@
 // still: 一张图（可选）。kind: 'ticket' 票根（自己拍的） | 'frame' 剧照（宽 1200 以内的低清图 + credit 注明出处）
 //        caption 写在图下面；横图放在文字栏里，竖图放在右侧
 //        只在点进作品之后出现，由粒子拼出来；没有就不显示
+//        alt / caption 是中文；alt_en / caption_en 是英文界面用的（可选，没有就显示中文）
 // line / note: 一句话 / 感想，留空就不显示
+// line_en / note_en: 英文界面里显示的版本（可选；没有就显示中文原文）
 export const WORKS = [
   {
     id: 'avatar-fire-and-ash', type: 'film',
@@ -21,7 +23,9 @@ export const WORKS = [
     still: {
       kind: 'ticket', src: 'stills/avatar-fire-and-ash.webp', w: 860, h: 1289,
       alt: '《阿凡达：火与烬》IMAX 3D 电影票根：2025 年 12 月 21 日 15:55，1 号 IMAX 厅，7 排 13 座',
-      caption: '2025.12.21 15:55 · IMAX 3D · 7排13座'
+      caption: '2025.12.21 15:55 · IMAX 3D · 7排13座',
+      alt_en: 'IMAX 3D ticket stub for Avatar: Fire and Ash — 21 Dec 2025, 15:55, IMAX Hall 1, row 7, seat 13',
+      caption_en: '2025.12.21 15:55 · IMAX 3D · ROW 7 SEAT 13'
     },
     line: '',
     note: '',
@@ -35,92 +39,12 @@ export const WORKS = [
     still: {
       kind: 'frame', src: 'stills/edgerunners.webp', w: 1200, h: 598,
       alt: '《赛博朋克：边缘行者》画面：大卫和露西背对镜头坐在月面上，望着地球',
+      alt_en: 'Still from Cyberpunk: Edgerunners — David and Lucy sit on the moon with their backs to us, looking at Earth',
       credit: '© CD PROJEKT RED · Studio Trigger / Netflix'
     },
     line: '追逐、陪伴、遗憾',
     note: '',
     link: 'https://www.imdb.com/title/tt12590266/'
-  },
-  {
-    id: 'blade-runner-2049', type: 'film', sample: true,
-    title: '银翼杀手 2049', title_en: 'Blade Runner 2049', year: 2017,
-    meta: 'Denis Villeneuve · 164 min',
-    palette: ['#ff7a1a', '#1c6f7a', '#2a0f08'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。可以很长，也可以只有一行。',
-    link: 'https://www.imdb.com/title/tt1856101/'
-  },
-  {
-    id: 'spirited-away', type: 'animation', sample: true,
-    title: '千与千寻', title_en: 'Spirited Away', year: 2001,
-    meta: '宫崎骏 · 125 min',
-    palette: ['#e8433a', '#2fb3a5', '#1b1340'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt0245429/'
-  },
-  {
-    id: 'breaking-bad', type: 'series', sample: true,
-    title: '绝命毒师', title_en: 'Breaking Bad', year: 2008,
-    meta: '5 seasons · 62 episodes',
-    palette: ['#f2c230', '#2f7d46', '#3a2a12'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt0903747/'
-  },
-  {
-    id: 'interstellar', type: 'film', sample: true,
-    title: '星际穿越', title_en: 'Interstellar', year: 2014,
-    meta: 'Christopher Nolan · 169 min',
-    palette: ['#f3d9a4', '#4a6d8c', '#0b0d14'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt0816692/'
-  },
-  {
-    id: 'black-mirror', type: 'series', sample: true,
-    title: '黑镜', title_en: 'Black Mirror', year: 2011,
-    meta: '7 seasons · anthology',
-    palette: ['#9fd3ff', '#3e4a5c', '#05070b'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt2085059/'
-  },
-  {
-    id: 'ghost-in-the-shell', type: 'animation', sample: true,
-    title: '攻壳机动队', title_en: 'Ghost in the Shell', year: 1995,
-    meta: '押井守 · 83 min',
-    palette: ['#5dffb0', '#2a5e6b', '#06120f'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt0113568/'
-  },
-  {
-    id: 'stranger-things', type: 'series', sample: true,
-    title: '怪奇物语', title_en: 'Stranger Things', year: 2016,
-    meta: '5 seasons',
-    palette: ['#ff2a2a', '#3b2b7a', '#0a0508'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt4574334/'
-  },
-  {
-    id: 'in-the-mood-for-love', type: 'film', sample: true,
-    title: '花样年华', title_en: 'In the Mood for Love', year: 2000,
-    meta: '王家卫 · 98 min',
-    palette: ['#c8102e', '#d9a441', '#1a0a0c'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt0118694/'
-  },
-  {
-    id: 'planet-earth', type: 'documentary', sample: true,
-    title: '地球脉动', title_en: 'Planet Earth', year: 2006,
-    meta: 'BBC · 11 episodes',
-    palette: ['#7fd8a6', '#2a6f97', '#06140f'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt0795176/'
   }
 ];
 
