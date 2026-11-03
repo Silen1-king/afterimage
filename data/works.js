@@ -1,12 +1,31 @@
 // 残影 · AFTERIMAGE — 看过的作品
-// 原型阶段：以下全部是「示例」，等 Silen1 换成自己真正看过的，并写上自己的话。
+// 没有 sample: true 的是 Silen1 真正看过的；标了 sample 的是示例，等换成自己看过的。
 // type（按作品形式分，一部作品只属于一类）：
 //   film 电影 —— 真人电影
 //   series 剧集 —— 真人剧集，美剧/英剧/韩剧/国产剧都算
 //   animation 动画 —— 所有动画，不论长片还是番剧（千与千寻、攻壳、边缘行者都在这里）
 //   documentary 纪录 —— 纪录片和纪录剧集（优先于以上三类）
 // palette: 三个颜色，是这部作品留在脑子里的「色谱」（不用海报，避开版权）
+// seen: 哪天看的（可选）
+// still: 一张自己的图（可选）。kind: 'ticket' 票根（自己拍的） | 'frame' 剧照（低清 + credit 注明出处）
+//        只在点进作品之后出现，由粒子拼出来；没有就不显示
+// line / note: 一句话 / 感想，留空就不显示
 export const WORKS = [
+  {
+    id: 'avatar-fire-and-ash', type: 'film',
+    title: '阿凡达：火与烬', title_en: 'Avatar: Fire and Ash', year: 2025,
+    meta: 'James Cameron · IMAX 3D',
+    palette: ['#ff5a1f', '#2a8ea0', '#1a0c08'],
+    seen: '2025-12-21',
+    still: {
+      kind: 'ticket', src: 'stills/avatar-fire-and-ash.webp', w: 860, h: 1289,
+      alt: '《阿凡达：火与烬》IMAX 3D 电影票根：2025 年 12 月 21 日 15:55，1 号 IMAX 厅，7 排 13 座',
+      caption: '2025.12.21 15:55 · IMAX 3D · 7排13座'
+    },
+    line: '',
+    note: '',
+    link: 'https://www.imdb.com/title/tt1757678/'
+  },
   {
     id: 'blade-runner-2049', type: 'film', sample: true,
     title: '银翼杀手 2049', title_en: 'Blade Runner 2049', year: 2017,

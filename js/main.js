@@ -119,7 +119,7 @@ for (let k = 0; k < COUNT; k++) {
     r = 2.9 + (Math.random() - 0.5) * 0.22 + Math.pow(Math.random(), 6) * 1.6 * Math.sign(across);
   } else if (kind < 0.84) {          // 贴着光带的「片孔」：等距的小亮点
     const strand = k % 2;
-    const step = Math.round(u * LEN * 2.2) / (LEN * 2.2);
+    const step = Math.min(1, Math.round(u * LEN * 2.2) / (LEN * 2.2));
     p.copy(curve.getPointAt(step));
     a = step * LEN * 0.42 + strand * Math.PI + (strand ? .42 : -.42);
     r = 3.25;
@@ -529,9 +529,12 @@ function fillDetail(ci) {
   $('#d-year').textContent = w.year;
   $('#d-title').textContent = w.title;
   $('#d-en').textContent = w.title_en;
-  $('#d-meta').textContent = w.meta;
-  $('#d-line').textContent = w.line;
-  $('#d-note').innerHTML = w.note.split(/\n+/).map((p) => `<p>${p}</p>`).join('');
+  $('#d-meta').textContent = w.seen ? `${w.meta} · SEEN ${w.seen.replace(/-/g, '.')}` : w.meta;
+  $('#d-line').textContent = w.line || '';
+  $('#d-line').hidden = !w.line;
+  $('#d-note').innerHTML = (w.note || '').split(/\n+/).filter(Boolean).map((p) => `<p>${p}</p>`).join('');
+  $('#d-note').hidden = !w.note;
+  setKeep(w);
   $('#d-palette').innerHTML = w.palette.map((c) => `<li><i style="background:${c}"></i><span>${c.toUpperCase()}</span></li>`).join('');
   const link = $('#d-link'); link.href = w.link; link.hidden = !w.link;
   $('#d-sample').classList.toggle('is-shown', !!w.sample);
@@ -541,6 +544,87 @@ function fillDetail(ci) {
   shared.uTint.value.set(w.palette[0]);
   document.title = `${w.title} · 残影 Afterimage`;
 }
+
+/* ------------------------------------------------------------------ 票根 / 定格：点进作品后，由粒子拼出来 */
+const keep = $('#d-keep'), keepImg = $('#d-keep-img'), keepFrame = $('#d-keep-frame'), dust = $('#d-keep-dust');
+const KEEP_LABEL = { ticket: '票根 · TICKET STUB', frame: '定格 · FREEZE FRAME' };
+let keepRun = 0;
+function setKeep(w) {
+  keepRun++;
+  const st = w.still;
+  $('.detail__inner').classList.toggle('has-keep', !!st);
+  keep.hidden = !st;
+  keep.classList.remove('is-shown');
+  if (!st) { keepImg.removeAttribute('src'); return; }
+  keep.dataset.kind = st.kind;
+  keep.style.setProperty('--ar', `${st.w} / ${st.h}`);
+  keepImg.src = st.src;
+  keepImg.alt = st.alt || '';
+  $('#d-keep-kind').textContent = KEEP_LABEL[st.kind] || KEEP_LABEL.frame;
+  $('#d-keep-cap').textContent = st.caption || '';
+}
+async function playKeep() {
+  if (keep.hidden) return;
+  const run = ++keepRun;
+  try { await keepImg.decode(); } catch (e) { /* 图没加载出来就直接显示 */ }
+  if (run !== keepRun) return;
+  if (reduceMotion || !keepImg.naturalWidth) { keep.classList.add('is-shown'); return; }
+  // 取样：把图缩成一小张，每个像素变成一颗粒子
+  const fw = keepFrame.offsetWidth, fh = keepFrame.offsetHeight;
+  const cols = coarse ? 64 : 96, rows = Math.round(cols * fh / fw);
+  const sc = document.createElement('canvas'); sc.width = cols; sc.height = rows;
+  const sg = sc.getContext('2d', { willReadFrequently: true });
+  sg.drawImage(keepImg, 0, 0, cols, rows);
+  const px = sg.getImageData(0, 0, cols, rows).data;
+  const pad = 0.45;                                   // 粒子从画框外面飞进来
+  const cw = fw * (1 + pad * 2), ch = fh * (1 + pad * 2);
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  dust.width = Math.round(cw * dpr); dust.height = Math.round(ch * dpr);
+  Object.assign(dust.style, { left: `${-fw * pad}px`, top: `${-fh * pad}px`, width: `${cw}px`, height: `${ch}px` });
+  const g = dust.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cell = fw / cols;
+  const parts = [];
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const k = (y * cols + x) * 4;
+    const a = Math.random() * Math.PI * 2, r = (0.35 + Math.random()) * Math.max(fw, fh);
+    parts.push({
+      tx: fw * pad + x * cell, ty: fh * pad + y * cell,
+      sx: cw / 2 + Math.cos(a) * r, sy: ch / 2 + Math.sin(a) * r,
+      d: Math.random() * 0.45 + (y / rows) * 0.25,
+      c: `rgb(${px[k]},${px[k + 1]},${px[k + 2]})`
+    });
+  }
+  keep.classList.add('is-assembling');
+  const T = 1.5, t0 = performance.now();
+  const step = (now) => {
+    if (run !== keepRun) { keep.classList.remove('is-assembling'); return; }
+    const t = (now - t0) / 1000;
+    g.clearRect(0, 0, cw, ch);
+    for (const p of parts) {
+      const e = easeOut(clamp((t - p.d) / (T - 0.6), 0, 1));
+      const sz = cell * (0.35 + 0.65 * e) * (1.8 - 0.8 * e);
+      g.globalAlpha = Math.min(1, e * 1.6);
+      g.fillStyle = p.c;
+      g.fillRect(lerp(p.sx, p.tx, e), lerp(p.sy, p.ty, e), sz, sz);
+    }
+    if (t > T - 0.45) keep.classList.add('is-shown');
+    if (t < T + 0.6) requestAnimationFrame(step);
+    else { keep.classList.remove('is-assembling'); g.clearRect(0, 0, cw, ch); }
+  };
+  requestAnimationFrame(step);
+}
+// 悬停：像把票根拿在手里，轻轻倾斜
+keepFrame.addEventListener('pointermove', (e) => {
+  if (reduceMotion || coarse) return;
+  const r = keepFrame.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+  keep.style.setProperty('--rx', `${(-y * 9).toFixed(2)}deg`);
+  keep.style.setProperty('--ry', `${(x * 11).toFixed(2)}deg`);
+  keep.style.setProperty('--gx', `${((x + .5) * 100).toFixed(1)}%`);
+  keep.style.setProperty('--gy', `${((y + .5) * 100).toFixed(1)}%`);
+});
+keepFrame.addEventListener('pointerleave', () => { ['--rx', '--ry'].forEach((v) => keep.style.setProperty(v, '0deg')); });
 
 function dive(ci) {
   if (mode !== 'browse' || ci == null || ci < 0) return;
@@ -575,6 +659,7 @@ function nextDetail(dir) {
     detail.scrollTop = 0;
     history.replaceState(null, '', `#/${WORKS[diveIdx].id}`);
     body.classList.add('is-detail-in');
+    playKeep();
   }, 520);
 }
 $('#d-back').addEventListener('click', exitDetail);
@@ -675,7 +760,7 @@ function tick() {
     cards[diveIdx].material.uniforms.uDissolve.value = mode === 'leaving' ? smooth(.04, .42, diveT) : smooth(.3, .82, diveT);
     veilMat.uniforms.uA.value = smooth(.42, 1, diveT);
     shared.uTintAmt.value = smooth(.4, 1, diveT);
-    if (mode === 'diving' && diveT >= 1) { mode = 'detail'; body.classList.add('is-detail-in'); detail.focus({ preventScroll: true }); }
+    if (mode === 'diving' && diveT >= 1) { mode = 'detail'; body.classList.add('is-detail-in'); detail.focus({ preventScroll: true }); playKeep(); }
     if (mode === 'leaving' && diveT <= 0) { mode = 'browse'; cards[diveIdx].material.uniforms.uDissolve.value = 0; camera.fov = isPortrait() ? 62 : 45; camera.updateProjectionMatrix(); }
   } else {
     camera.position.copy(basePos);
