@@ -7,7 +7,8 @@
 //   documentary 纪录 —— 纪录片和纪录剧集（优先于以上三类）
 // palette: 三个颜色，是这部作品留在脑子里的「色谱」（不用海报，避开版权）
 // seen: 哪天看的（可选）
-// still: 一张自己的图（可选）。kind: 'ticket' 票根（自己拍的） | 'frame' 剧照（低清 + credit 注明出处）
+// still: 一张图（可选）。kind: 'ticket' 票根（自己拍的） | 'frame' 剧照（宽 1200 以内的低清图 + credit 注明出处）
+//        caption 写在图下面；横图放在文字栏里，竖图放在右侧
 //        只在点进作品之后出现，由粒子拼出来；没有就不显示
 // line / note: 一句话 / 感想，留空就不显示
 export const WORKS = [
@@ -25,6 +26,20 @@ export const WORKS = [
     line: '',
     note: '',
     link: 'https://www.imdb.com/title/tt1757678/'
+  },
+  {
+    id: 'edgerunners', type: 'animation',
+    title: '赛博朋克：边缘行者', title_en: 'Cyberpunk: Edgerunners', year: 2022,
+    meta: 'Studio Trigger · Season 1 · 10 episodes',
+    palette: ['#f4e41e', '#3db7e0', '#04060c'],
+    still: {
+      kind: 'frame', src: 'stills/edgerunners.webp', w: 1200, h: 598,
+      alt: '《赛博朋克：边缘行者》画面：大卫和露西背对镜头坐在月面上，望着地球',
+      credit: '© CD PROJEKT RED · Studio Trigger / Netflix'
+    },
+    line: '追逐、陪伴、遗憾',
+    note: '',
+    link: 'https://www.imdb.com/title/tt12590266/'
   },
   {
     id: 'blade-runner-2049', type: 'film', sample: true,
@@ -61,15 +76,6 @@ export const WORKS = [
     line: '（示例）一句话写在这里。',
     note: '（示例）这里是你看完之后想说的话。',
     link: 'https://www.imdb.com/title/tt0816692/'
-  },
-  {
-    id: 'edgerunners', type: 'animation', sample: true,
-    title: '赛博朋克：边缘行者', title_en: 'Cyberpunk: Edgerunners', year: 2022,
-    meta: '1 season · 10 episodes',
-    palette: ['#fcee0a', '#ff2e88', '#0a1630'],
-    line: '（示例）一句话写在这里。',
-    note: '（示例）这里是你看完之后想说的话。',
-    link: 'https://www.imdb.com/title/tt12590266/'
   },
   {
     id: 'black-mirror', type: 'series', sample: true,

@@ -567,16 +567,21 @@ let keepRun = 0;
 function setKeep(w) {
   keepRun++;
   const st = w.still;
-  $('.detail__inner').classList.toggle('has-keep', !!st);
+  // 竖图（票根）放右侧一栏；横图（剧照）放在文字栏里，跟着内容走
+  const wide = !!st && st.w / st.h > 1.2;
+  $('.detail__inner').classList.toggle('has-keep', !!st && !wide);
+  keep.classList.toggle('is-wide', wide);
   keep.hidden = !st;
   keep.classList.remove('is-shown');
   if (!st) { keepImg.removeAttribute('src'); return; }
   keep.dataset.kind = st.kind;
+  keep.dataset.type = w.type;
   keep.style.setProperty('--ar', `${st.w} / ${st.h}`);
   keepImg.src = st.src;
   keepImg.alt = st.alt || '';
   $('#d-keep-kind').textContent = KEEP_LABEL[st.kind] || KEEP_LABEL.frame;
   $('#d-keep-cap').textContent = st.caption || '';
+  $('#d-keep-credit').textContent = st.credit || '';
 }
 async function playKeep() {
   if (keep.hidden) return;
@@ -585,8 +590,9 @@ async function playKeep() {
   if (run !== keepRun) return;
   if (reduceMotion || !keepImg.naturalWidth) { keep.classList.add('is-shown'); return; }
   // 取样：把图缩成一小张，每个像素变成一颗粒子
-  const fw = keepFrame.offsetWidth, fh = keepFrame.offsetHeight;
-  const cols = coarse ? 64 : 96, rows = Math.round(cols * fh / fw);
+  const fw = keepImg.offsetWidth, fh = keepImg.offsetHeight;
+  const ox = keepFrame.offsetLeft + keepImg.offsetLeft, oy = keepFrame.offsetTop + keepImg.offsetTop;
+  const cols = coarse ? 64 : (fw > fh * 1.2 ? 128 : 96), rows = Math.round(cols * fh / fw);
   const sc = document.createElement('canvas'); sc.width = cols; sc.height = rows;
   const sg = sc.getContext('2d', { willReadFrequently: true });
   sg.drawImage(keepImg, 0, 0, cols, rows);
@@ -595,7 +601,7 @@ async function playKeep() {
   const cw = fw * (1 + pad * 2), ch = fh * (1 + pad * 2);
   const dpr = Math.min(devicePixelRatio || 1, 2);
   dust.width = Math.round(cw * dpr); dust.height = Math.round(ch * dpr);
-  Object.assign(dust.style, { left: `${-fw * pad}px`, top: `${-fh * pad}px`, width: `${cw}px`, height: `${ch}px` });
+  Object.assign(dust.style, { left: `${ox - fw * pad}px`, top: `${oy - fh * pad}px`, width: `${cw}px`, height: `${ch}px` });
   const g = dust.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   const cell = fw / cols;
