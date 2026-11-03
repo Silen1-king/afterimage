@@ -453,12 +453,27 @@ addEventListener('pointermove', (e) => {
   mousePx.x = e.clientX; mousePx.y = e.clientY;
   cursor.classList.toggle('is-link', !!e.target.closest('button, a') && hovered < 0);
 });
-canvas.addEventListener('click', () => {
+// 手机和平板没有悬停，点的那一下要自己判断点中了哪张卡
+const tapRay = new THREE.Raycaster(), tapNdc = new THREE.Vector2();
+function cardAt(x, y) {
+  tapNdc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  tapRay.setFromCamera(tapNdc, camera);
+  let best = 1e9, hit = -1;
+  for (const m of cards) {
+    const d = m.userData;
+    if (!d.show || d.pass > .4) continue;
+    const h = tapRay.intersectObject(m)[0];
+    if (h && h.distance < best) { best = h.distance; hit = d.i; }
+  }
+  return hit;
+}
+canvas.addEventListener('click', (e) => {
   if (mode !== 'browse' || !entered) return;
-  if (hovered < 0) return;
-  const j = cards[hovered].userData.slot;
+  const ci = hovered >= 0 ? hovered : cardAt(e.clientX, e.clientY);
+  if (ci < 0) return;
+  const j = cards[ci].userData.slot;
   if (Math.abs(j - s) > 0.35) { sT = j; lastInput = now(); return; }  // 先飞过去
-  dive(hovered);
+  dive(ci);
 });
 
 /* ------------------------------------------------------------------ 当前作品信息 */
