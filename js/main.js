@@ -569,8 +569,20 @@ function buildRail() {
 }
 
 /* ------------------------------------------------------------------ 筛选 */
+// 详情页里点分类：先高亮，飞回胶片带后再洗牌（pendingFilter 在回到 browse 时生效）
+let pendingFilter = null;
 document.querySelectorAll('.chip').forEach((chip) => chip.addEventListener('click', () => {
-  if (mode !== 'browse') return;
+  if (mode === 'diving') return;   // 正在穿进卡片的一瞬间不打断
+  if (mode !== 'browse') {
+    document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-on', c === chip));
+    pendingFilter = chip;
+    if (mode === 'detail') exitDetail();
+    return;
+  }
+  applyFilter(chip);
+}));
+function applyFilter(chip) {
+  pendingFilter = null;
   document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-on', c === chip));
   filter = chip.dataset.filter;
   const cur = visible[Math.round(clamp(s, 0, maxS()))];
@@ -581,7 +593,7 @@ document.querySelectorAll('.chip').forEach((chip) => chip.addEventListener('clic
   sT = keep >= 0 ? keep : 0;
   // 一阵「重新洗牌」的风
   warpKick = 0.35;
-}));
+}
 let warpKick = 0;
 
 /* ------------------------------------------------------------------ 开场 → 进入 */
@@ -911,7 +923,7 @@ function tick() {
     veilMat.uniforms.uA.value = smooth(.42, 1, diveT);
     shared.uTintAmt.value = smooth(.4, 1, diveT);
     if (mode === 'diving' && diveT >= 1) { mode = 'detail'; body.classList.add('is-detail-in'); detail.focus({ preventScroll: true }); playKeep(); }
-    if (mode === 'leaving' && diveT <= 0) { mode = 'browse'; cards[diveIdx].material.uniforms.uDissolve.value = 0; camera.fov = isPortrait() ? 62 : 45; camera.updateProjectionMatrix(); }
+    if (mode === 'leaving' && diveT <= 0) { mode = 'browse'; cards[diveIdx].material.uniforms.uDissolve.value = 0; camera.fov = isPortrait() ? 62 : 45; camera.updateProjectionMatrix(); if (pendingFilter) applyFilter(pendingFilter); }
   } else {
     camera.position.copy(basePos);
     curLook.copy(baseLook);
