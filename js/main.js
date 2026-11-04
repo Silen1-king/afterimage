@@ -807,11 +807,24 @@ indexList.addEventListener('click', (e) => {
   const ci = WORKS.findIndex((w) => w.id === b.dataset.id);
   $('#index').hidden = true;
   if (!entered) enter();
-  if (!visible.includes(ci)) { document.querySelector('.chip[data-filter=all]').click(); }
-  if (mode === 'detail') { exitDetail(); }
+  if (mode === 'diving') return;
+  if (mode !== 'browse') {
+    // 在详情页里选了另一部：先飞回胶片带，落地后再穿进新的那张（见 tick 里的 pendingDive）
+    if (ci === diveIdx && mode === 'detail') return;
+    if (!visible.includes(ci)) pendingFilter = document.querySelector('.chip[data-filter=all]');
+    pendingDive = ci;
+    if (mode === 'detail') exitDetail();
+    return;
+  }
+  diveTo(ci);
+});
+let pendingDive = -1;
+function diveTo(ci) {
+  pendingDive = -1;
+  if (!visible.includes(ci)) applyFilter(document.querySelector('.chip[data-filter=all]'));
   sT = s = cards[ci].userData.slot;
   setTimeout(() => dive(ci), 60);
-});
+}
 
 /* ------------------------------------------------------------------ 中 / EN */
 function refreshLang() {
@@ -923,7 +936,7 @@ function tick() {
     veilMat.uniforms.uA.value = smooth(.42, 1, diveT);
     shared.uTintAmt.value = smooth(.4, 1, diveT);
     if (mode === 'diving' && diveT >= 1) { mode = 'detail'; body.classList.add('is-detail-in'); detail.focus({ preventScroll: true }); playKeep(); }
-    if (mode === 'leaving' && diveT <= 0) { mode = 'browse'; cards[diveIdx].material.uniforms.uDissolve.value = 0; camera.fov = isPortrait() ? 62 : 45; camera.updateProjectionMatrix(); if (pendingFilter) applyFilter(pendingFilter); }
+    if (mode === 'leaving' && diveT <= 0) { mode = 'browse'; cards[diveIdx].material.uniforms.uDissolve.value = 0; camera.fov = isPortrait() ? 62 : 45; camera.updateProjectionMatrix(); if (pendingFilter) applyFilter(pendingFilter); if (pendingDive >= 0) diveTo(pendingDive); }
   } else {
     camera.position.copy(basePos);
     curLook.copy(baseLook);
